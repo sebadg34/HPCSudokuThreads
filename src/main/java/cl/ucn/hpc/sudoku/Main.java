@@ -31,6 +31,9 @@ public class Main {
                 {0, 8, 0, 5, 0, 0, 0, 0, 2}
         };
 
+        System.out.println("CURRENT BOARD TO SOLVE");
+        printBoard(board);
+        System.out.println("========================");
         if(SolveBoard(board)){
             System.out.println("BOARD SOLVED");
             printBoard(board);
@@ -113,6 +116,7 @@ public class Main {
        return true;
     }
 
+    // Function that prints the board on screen
     private static void printBoard(int[][] board){
         for (int i = 0; i < gridSize; i++){
             System.out.print("| ");
