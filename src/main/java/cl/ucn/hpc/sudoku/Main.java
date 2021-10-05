@@ -2,9 +2,11 @@ package cl.ucn.hpc.sudoku;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.time.StopWatch;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 
 /**
  *  The Main Class of Sudoku Solver
@@ -15,9 +17,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class Main {
 
-    // Variables used for length of cycles inside the board
-    public static int smallGridSize;
-    public static int gridSize;
+
 
 
 
@@ -36,7 +36,7 @@ public class Main {
             {0, 5, 0, 8, 2, 4, 6, 0, 0},
             {0, 8, 0, 5, 0, 0, 0, 0, 2}
     };
-    static int [][] board5 = {
+    static int [][] board = {
             {0,0,3,0,2,0,4,0,0},
             {0,0,0,4,0,9,0,0,0},
             {0,0,8,0,0,0,0,6,0},
@@ -69,7 +69,7 @@ public class Main {
     };
 
     // 16x16 medium
-    static int [][] board = {
+    static int [][] boardmnvmvn = {
             {0,0,0,10,16,0,0,0,0,0,0,13,0,12,0,11},
             {4,16,0,13,2,15,0,14,7,0,6,5,1,0,8,9},
             {14,0,2,6,1,0,9,13,4,15,8,0,5,0,0,0},
@@ -89,7 +89,7 @@ public class Main {
     };
 
     // 16x16 hard
-    static int [][] board_hard = {
+    static int [][] boardadsfadfs = {
             {0,0,0,0,0,6,0,0,0,0,0,0,1,0,16,0},
             {0,3,6,0,0,0,0,9,0,0,10,11,12,0,15,0},
             {12,14,0,10,0,0,16,2,0,0,13,0,0,4,5,11},
@@ -109,38 +109,36 @@ public class Main {
 
     };
 
-
-    public static void main(String[] args) {
-
-        gridSize = board.length;
-        smallGridSize = (int) Math.sqrt(gridSize);
-        int[][] boardCopy = board;
-
-        int N = 1;
-
-        List<Long> times = new ArrayList<>();
+    static Deque<int[][]> stack = new ArrayDeque<int[][]>();
 
 
+    // Variables used for length of cycles inside the board
+    public static int gridSize = board.length;
+    public static int smallGridSize = (int) Math.sqrt(gridSize);
 
+    public static void main(String[] args ) throws ExecutionException, InterruptedException {
+
+
+        SolveBoardPrep(board);
+        System.out.println("CANTIDAD EN STACK " + stack.size());
+        for(int i = 0; i <= stack.size(); i++){
+            printBoard(stack.pop());
+        }
 
         System.out.println("CURRENT BOARD TO SOLVE");
         printBoard(board);
         System.out.println("========================");
         System.out.println("========================");
 
-        for (int i = 0; i < N; i ++){
+
             long time = runInMillis();
-            log.debug("N:{} -> Time. {}",i,time);
-            times.add(time);
-            board = boardCopy;
-        }
-
-
+            log.debug("N:{} -> Time. {}",1,time);
 
     }
 
 
-    private static long runInMillis(){
+
+    private static long runInMillis() throws ExecutionException, InterruptedException {
 
         // Stopwatch
         StopWatch sw = StopWatch.createStarted();
@@ -152,8 +150,6 @@ public class Main {
             }else{
                 System.out.println("ERROR, BOARD NOT SOLVABLE");
             }
-
-
 
         return sw.getTime(TimeUnit.MILLISECONDS);
     }
@@ -200,30 +196,30 @@ public class Main {
     }
 
     // Call all method to verify if number is valid.
-    private static boolean NumberIsValid(int[][] board, int number, int row, int column){
+    private static boolean NumberIsValid(int[][] board, int number, int row, int column) {
         if(IsInRow(board,number,row) ||
            IsInColumn(board,number,column) ||
            IsInGrid(board,number,row,column)){
             return false;
         }
         return true;
+
     }
 
     // Main method for solving the Sudoku board, based in recursive/backtracking approach.
-    private static boolean SolveBoard(int[][]board){
+    private static boolean SolveBoard(int[][]board) {
        for(int row = 0; row < gridSize; row++){
            for(int column = 0; column < gridSize; column++){
                if(board[row][column] == 0){
                    for(int testedNumber = 1; testedNumber <= gridSize; testedNumber++){
                        if(NumberIsValid(board,testedNumber,row,column)){
                            board[row][column] = testedNumber;
-
                            if(SolveBoard(board)){
                                return true;
                            }
                            else {
                                board[row][column] = 0;
-                           };
+                           }
                        }
                    }
                    return false;
@@ -272,5 +268,33 @@ public class Main {
         }
     }
 
+
+    static int counter = 0;
+    // Function used for getting all the board possibilites of the first 7 cells.
+    private static boolean SolveBoardPrep(int[][]board) {
+
+
+        for(int row = 0; row < gridSize; row++){
+            for(int column = 0; column < gridSize; column++){
+                if(board[row][column] == 0){
+                    for(int testedNumber = 1; testedNumber <= gridSize; testedNumber++){
+                        if(NumberIsValid(board,testedNumber,row,column)){
+                            counter++;
+                            board[row][column] = testedNumber;
+                            if(counter < 7){
+                                SolveBoardPrep(newBoard);
+                            }else{
+                                stack.add(newBoard);
+                                newBoard[row][column] = 0;
+                                counter--;
+                            }
+                        }
+                    }
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
 }

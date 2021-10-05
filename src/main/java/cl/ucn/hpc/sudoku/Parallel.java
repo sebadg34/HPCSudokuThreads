@@ -20,6 +20,7 @@ public class Parallel {
 
     private static  AtomicInteger counter = new AtomicInteger(0);
 
+    public static int[][] board = Main.board;
     public static void main(String[] args) throws InterruptedException {
 
         final int cores = 4;
@@ -55,4 +56,6 @@ public class Parallel {
             log.warn("The Executor didn't finish in {} minutes", maxTime);
         }
     }
+
+
 }
