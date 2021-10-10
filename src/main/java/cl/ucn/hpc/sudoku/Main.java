@@ -1,4 +1,5 @@
 package cl.ucn.hpc.sudoku;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.time.StopWatch;
@@ -26,7 +27,7 @@ public class Main {
 
     // Matrix used for the sudoku board itself.
     // 0 equals to empty space in the sudoku board.
-    static int [][] board_easy_small_1 = {
+    static int [][] board= {
             {3, 0, 0, 0, 0, 6, 0, 8, 0},
             {0, 0, 1, 9, 8, 2, 0, 4, 0},
             {0, 0, 0, 0, 0, 0, 9, 7, 0},
@@ -70,7 +71,7 @@ public class Main {
     };
 
     // 16x16 medium
-    static int [][] board_medium = {
+    static int [][] boardjhhjf = {
             {0,0,0,10,16,0,0,0,0,0,0,13,0,12,0,11},
             {4,16,0,13,2,15,0,14,7,0,6,5,1,0,8,9},
             {14,0,2,6,1,0,9,13,4,15,8,0,5,0,0,0},
@@ -90,7 +91,7 @@ public class Main {
     };
 
     // 16x16 hard
-    static int [][] board = {
+    static int [][] boardcvbcn = {
             {0,0,0,0,0,6,0,0,0,0,0,0,1,0,16,0},
             {0,3,6,0,0,0,0,9,0,0,10,11,12,0,15,0},
             {12,14,0,10,0,0,16,2,0,0,13,0,0,4,5,11},
@@ -112,33 +113,40 @@ public class Main {
 
     static Deque<int[][]> stack = new ArrayDeque<int[][]>();
 
-static boolean solved = false;
+    static boolean solved = false;
     // Variables used for length of cycles inside the board
     public static int gridSize = board.length;
     public static int smallGridSize = (int) Math.sqrt(gridSize);
 
     public static void main(String[] args ) throws ExecutionException, InterruptedException {
 
+        // reduce the amount of candidates by elimination
+        CheckElimination(board);
 
         stack.add(board);
+
+        // get more iterations of the board
         SolveBoardPrep(stack.pop());
 
-        final int maxCores = Runtime.getRuntime().availableProcessors();
-        log.debug ("The max cores: {}.",maxCores);
 
 
-        final ExecutorService executor = Executors.newFixedThreadPool(13);
+
+        log.debug ("The max cores: {}.",Runtime.getRuntime().availableProcessors());
+        final int cores = 1;
+        System.out.println("USING " + cores + " CORES FOR SOLUTION ");
+        final ExecutorService executor = Executors.newFixedThreadPool(cores);
         final StopWatch sw = StopWatch.createStarted();
+        System.out.println("BOARD TO SOLVE: ");
+        printBoard(board);
+        System.out.println("=========================\n=====================");
 
-
+        // for each iteration saved, try to solve it with threads.
         for(int i = 0; i < stack.size(); i++){
-
             final int[][] testboard = stack.pop();
-
             executor.submit(() -> {
                 if(SolveBoard(testboard)){
                     System.out.println("BOARD SOLVED");
-                    printBoard(testboard);
+                    board = testboard;
                     executor.shutdownNow();
                 }
             });
@@ -147,37 +155,17 @@ static boolean solved = false;
 
         int maxTime = 5;
         if(executor.awaitTermination(maxTime, TimeUnit.MINUTES)){
-            log.info("Executor ok. {} {}", counter, sw.getTime(TimeUnit.MILLISECONDS));
+            printBoard(board);
+            log.info("Executor ok. WITH {} CORES, in {} milliseconds", cores, sw.getTime(TimeUnit.MILLISECONDS));
         } else {
             log.warn("The Executor didn't finish in {} minutes", maxTime);
         }
 
 
-        //long time = runInMillis();
-        //log.debug("N:{} -> Time. {}",1,time);
-
     }
 
 
-
-    private static long runInMillis() throws ExecutionException, InterruptedException {
-
-        // Stopwatch
-        StopWatch sw = StopWatch.createStarted();
-            if(SolveBoard(board)){
-                System.out.println("BOARD SOLVED");
-                printBoard(board);
-            }else{
-                System.out.println("ERROR, BOARD NOT SOLVABLE");
-            }
-        return sw.getTime(TimeUnit.MILLISECONDS);
-    }
-
-
-
-
-    // Check if number is valid for the row
-    // returns true if is invalid
+    // Check if number is valid for the row, returns true if is invalid
     private static boolean IsInRow(int[][] board, int number, int row){
         for (int i = 0; i < gridSize; i++){
             if(board[row][i] == number){
@@ -187,8 +175,7 @@ static boolean solved = false;
         return false;
     }
 
-    // Check if number is valid for the column
-    // returns true if is invalid
+    // Check if number is valid for the column, returns true if is invalid
     private static boolean IsInColumn(int[][] board, int number, int column){
         for (int i = 0; i < gridSize; i++){
             if(board[i][column] == number){
@@ -198,8 +185,7 @@ static boolean solved = false;
         return false;
     }
 
-    // Check if number is valid for the 3x3 grid.
-    // returns true if is invalid.
+    // Check if number is valid for the 3x3 grid, returns true if is invalid
     private static boolean IsInGrid(int[][] board, int number,int row, int column){
         int gridRow = row - row % smallGridSize;
         int gridColumn = column - column % smallGridSize;
@@ -254,6 +240,10 @@ static boolean solved = false;
 
     // Function that prints the board on screen
     private static void printBoard(int[][] board){
+
+        if(Thread.currentThread().isInterrupted()) return;
+
+        System.out.println("- - - - - - - - - - - - - - - - - - - - - - - - - - - - -");
         for (int i = 0; i < gridSize; i++){
             System.out.print("| ");
 
@@ -282,52 +272,28 @@ static boolean solved = false;
                         System.out.print(number + " ");
                     }
                 }
-
             }
             System.out.println();
             if((i + 1)%smallGridSize == 0)
                 System.out.println("- - - - - - - - - - - - - - - - - - - - - - - - - - - - -");
-
         }
         System.out.println("=================================================================");
     }
 
 
-    static int counter = 0;
-
 
     // Function used for getting many boards with posible solutions.
     public static boolean SolveBoardPrep(int[][] board) {
-
         for(int row = 0; row < gridSize; row++) {
             for (int column = 0; column < gridSize; column++) {
                 if (board[row][column] == 0) {
                     for (int testedNumber = 1; testedNumber <= gridSize; testedNumber++) {
-
                         if (NumberIsValid(board, testedNumber, row, column)) {
-
-
-                            int[][] newBoard = {
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-                                    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
-
-                            };
+                            // create new empty board
+                            int[][] newBoard = new int [gridSize][gridSize];
                             CloneMatrix(board, newBoard);
                             newBoard[row][column] = testedNumber;
+                            // save new board
                             stack.add(newBoard);
                         }
                     }
@@ -335,7 +301,6 @@ static boolean solved = false;
             }
         }
         return true;
-
     }
 
     // Method utilized for matrix cloning.
@@ -347,6 +312,69 @@ static boolean solved = false;
             }
         }
     }
+
+    // call for Elimination method for each 0 in the board.
+    private static void CheckElimination(int[][] board){
+        for(int row = 0; row < gridSize; row++) {
+            for (int column = 0; column < gridSize; column++) {
+                // if zero, check for elimination
+                if(board[row][column] == 0){
+                    Elimination(board,row,column);
+                }
+
+            }
+        }
+
+    }
+
+    // Elimination method
+    private static void Elimination(int[][] board, int cellRow, int cellColumn){
+
+    List<Integer> candidates = new ArrayList<Integer>();
+
+    // Variables used for loop withing the small grid.
+    int gridRow = cellRow - cellRow % smallGridSize;
+    int gridColumn = cellColumn - cellColumn % smallGridSize;
+
+        for(int i = 0; i < gridSize; i++){
+           candidates.add(i+1);
+        }
+        // check the row and column
+        for(int i = 0; i < gridSize; i++){
+            if(board[i][cellColumn] != 0){
+                if(candidates.contains(Integer.valueOf(board[i][cellColumn]))){
+                    candidates.remove(Integer.valueOf(board[i][cellColumn]));
+                }
+            }
+            if(board[cellRow][i] != 0){
+                if(candidates.contains(Integer.valueOf(board[cellRow][i]))){
+                    candidates.remove(Integer.valueOf(board[cellRow][i]));
+                }
+            }
+        }
+
+        // check the grid
+        for(int i = gridRow; i < gridRow + smallGridSize; i++){
+            for(int j = gridColumn; j < gridColumn + smallGridSize; j++){
+                if(board[i][j] != 0){
+                    if(candidates.contains(Integer.valueOf(board[i][j]))){
+                        candidates.remove(Integer.valueOf(board[i][j]));
+                    }
+                }
+
+            }
+        }
+        // check if only one candidate remains
+        if(candidates.size() == 1){
+            System.out.println("ELIMINATION FOR OBVIOUS NUMBER: " + candidates.get(0));
+            log.debug("AT row {} and column {}", cellRow, cellColumn);
+            board[cellRow][cellColumn] = candidates.get(0);
+        }
+    }
+
+
+
+
 }
 
 
